@@ -1,28 +1,16 @@
-import os
 import sys
-from pathlib import Path
+from contextlib import asynccontextmanager
+from functools import wraps
+from uuid import uuid4
 
-from dotenv import load_dotenv
+import aiofiles
 from loguru import logger
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
-from elsa_telegram_bot.audio import transcribe_audio
-
-load_dotenv()  # take environment variables from .env.
-
-from elsa_telegram_bot.chat import get_answer
-
-TELEGRAM_API_TOKEN = os.getenv("TELEGRAM_API_TOKEN")
-
-ALLOWED_USERS = [
-    175402881,  # Taras
-    557037718,  # Ira
-]
-
-CURRENT_DIR = Path(__file__).parent
-PROJECT_DIR = CURRENT_DIR.parent
-AUDIO_DIR = PROJECT_DIR / "audio"
+from chat import get_answer
+from config import TELEGRAM_API_TOKEN, PORT, ALLOWED_USER_IDS
+from voice import transcribe_audio, convert_ogg_to_mp3
 
 logger.configure(
     handlers=[
@@ -32,9 +20,10 @@ logger.configure(
 
 
 def only_allowed_users(func):
+    @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.effective_user.id not in ALLOWED_USERS:
-            logger.info(f"User {update.effective_user.id} is not allowed to use this bot.")
+        if update.effective_user.id not in ALLOWED_USER_IDS:
+            logger.error(f"User {update.effective_user.id} is not allowed to use this bot.")
             return
         await func(update, context)
 
@@ -49,27 +38,36 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @only_allowed_users
 async def gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    answer = await get_answer(update.message.text)
+    answer = await get_answer(update.message.text, update.effective_user.id)
     logger.info(answer)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
+
+
+@asynccontextmanager
+async def temp_file(suffix):
+    async with aiofiles.tempfile.NamedTemporaryFile(
+            mode="w+b", suffix=suffix
+    ) as file:
+        yield file
 
 
 @only_allowed_users
 async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = await update.message.voice.get_file()
     logger.info(file)
-    file_path = await file.download_to_memory()
-    # file_path = await file.download_to_drive(
-    #     custom_path=AUDIO_DIR / f"{file.file_unique_id}_{update.message.date.strftime('%Y-%m-%d_%H%M%S')}.oga")
-    logger.info(file_path)
-    text = await transcribe_audio(file_path)
-    logger.info(text)
-    answer = await get_answer(text)
-    logger.info(answer)
+    async with temp_file(suffix=".oga") as ogg_file:
+        await file.download_to_drive(ogg_file.name)
+        logger.info(ogg_file)
+        async with temp_file(suffix=".mp3") as mp3_file:
+            await convert_ogg_to_mp3(ogg_file.name, mp3_file.name)
+            text = await transcribe_audio(mp3_file)
+
+    answer = await get_answer(text, update.effective_user.id)
+    logger.info(f"Answer: {answer}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
 
 
-def run():
+def create_app():
     application = ApplicationBuilder().token(TELEGRAM_API_TOKEN).build()
 
     start_handler = CommandHandler('start', start)
@@ -80,4 +78,25 @@ def run():
     application.add_handler(gpt_handler)
     application.add_handler(voice_handler)
 
-    application.run_polling()
+    return application
+
+
+def run_polling():
+    logger.info('Starting bot in POLLING mode')
+    app = create_app()
+    app.run_polling(drop_pending_updates=True)
+
+
+def run_webhook():
+    logger.info(f'Starting bot in WEBHOOK mode of port {PORT} with allowed user ids {ALLOWED_USER_IDS}')
+    app = create_app()
+    url_path = f'bot/{uuid4()}'
+    webhook_url = f"https://elsa-telegram-bot.herokuapp.com/{url_path}"
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=url_path,
+        webhook_url=webhook_url,
+        drop_pending_updates=True,
+        secret_token=str(uuid4()),
+    )

@@ -2,5 +2,5 @@
 *
 
 # Except this file
-!src
+!elsa_telegram_bot
 !requirements.txt

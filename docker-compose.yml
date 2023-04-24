@@ -1,7 +1,8 @@
 services:
-  app:
+  web:
     build:
       context: .
     env_file: .env
+    command: python elsa_telegram_bot/cli.py start-polling
     volumes:
       - ./:/app

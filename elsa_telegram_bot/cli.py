@@ -1,6 +1,6 @@
 import click
 
-from elsa_telegram_bot import app
+import app
 
 
 @click.group()
@@ -10,9 +10,15 @@ def main() -> None:
 
 
 @main.command()
-def start() -> None:
-    """Start bot"""
-    app.run()
+def start_webhook() -> None:
+    """Start bot in webhook mode"""
+    app.run_webhook()
+
+
+@main.command()
+def start_polling() -> None:
+    """Start bot in polling mode"""
+    app.run_polling()
 
 
 if __name__ == "__main__":
