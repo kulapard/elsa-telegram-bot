@@ -1,0 +1,7 @@
+services:
+  app:
+    build:
+      context: .
+    env_file: .env
+    volumes:
+      - ./:/app
