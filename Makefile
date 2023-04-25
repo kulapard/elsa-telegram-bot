@@ -12,3 +12,6 @@ logs:
 lint:
 	pre-commit run --all-files
 	#mypy elsa_telegram_bot
+
+run:
+	docker-compose up --build
