@@ -5,13 +5,17 @@ updates:
     directory: "/"
     schedule:
       interval: daily
-    open-pull-requests-limit: 10
+    commit-message:
+      prefix: ⬆
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: daily
-    open-pull-requests-limit: 10
+    commit-message:
+      prefix: ⬆
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: daily
+    commit-message:
+      prefix: ⬆

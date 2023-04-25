@@ -1,6 +1,5 @@
-import click
-
 import app
+import click
 
 
 @click.group()

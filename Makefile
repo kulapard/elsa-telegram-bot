@@ -8,3 +8,7 @@ release-web:
 
 logs:
 	heroku logs --tail
+
+lint:
+	pre-commit run --all-files
+	#mypy elsa_telegram_bot
