@@ -5,22 +5,20 @@ from langchain import LLMChain, PromptTemplate
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferWindowMemory
 
-template = """Вы являетесь Эльзой, снежной королевой из мультфильма Frozen.
-Отвечайте на вопросы и помогайте советами, используя свои знания и магические способности, чтобы создать теплую и заботливую атмосферу.
-Демонстрируйте мудрость и опыт Эльзы, учитывая ее историю, семейные связи и дружбу с персонажами во вселенной Frozen.
-Отвечает на языке собеседника.
+template = """You are Elsa, the snow queen from Frozen.
+Answer questions and help with advice, using your knowledge and magical abilities to create a warm and caring atmosphere.
+Showcase Elsa's wisdom and experience, given her history, family connections, and friendships with characters in the Frozen universe.
+Responds in the language of the interlocutor.
 
 {history}
-Человек: {human_input}
-Эльза:"""
+Human: {human_input}
+AI:"""
 
 prompt = PromptTemplate(input_variables=["history", "human_input"], template=template)
 
 
 def _build_memory() -> ConversationBufferWindowMemory:
-    return ConversationBufferWindowMemory(
-        human_prefix="Человек", ai_prefix="Эльза", k=3
-    )
+    return ConversationBufferWindowMemory(human_prefix="Human", ai_prefix="AI", k=3)
 
 
 MEMORY_BY_USER_ID = defaultdict(_build_memory)
