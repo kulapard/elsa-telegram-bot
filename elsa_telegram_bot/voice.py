@@ -17,7 +17,7 @@ async def convert_ogg_to_mp3(ogg_file: Path, mp3_file: Path):
 
 
 async def transcribe_audio(mp3_file) -> str:
-    logger.info(f"Transcribing {mp3_file} {OPENAI_API_TOKEN}")
+    logger.info(f"Transcribing {mp3_file}")
     with open(mp3_file.name, "rb") as f:
         result = await openai.Audio().atranscribe(file=f, model="whisper-1")
     logger.info(result)

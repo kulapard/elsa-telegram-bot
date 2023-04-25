@@ -8,6 +8,7 @@ from chat import get_answer
 from config import ALLOWED_USER_IDS, PORT, TELEGRAM_API_TOKEN
 from loguru import logger
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -16,6 +17,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.helpers import escape_markdown
 from voice import convert_ogg_to_mp3, transcribe_audio
 
 logger.configure(
@@ -46,11 +48,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+def quoted_response(question, answer) -> str:
+    safe_question = escape_markdown(question, version=2)
+    safe_answer = escape_markdown(answer, version=2)
+    return f"\\> _{safe_question}_\n\n{safe_answer}"
+
+
 @only_allowed_users
-async def gpt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     answer = await get_answer(update.message.text, update.effective_user.id)
     logger.info(answer)
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=answer,
+    )
 
 
 @asynccontextmanager
@@ -65,25 +76,28 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(file)
     async with temp_file(suffix=".oga") as ogg_file:
         await file.download_to_drive(ogg_file.name)
-        logger.info(ogg_file)
         async with temp_file(suffix=".mp3") as mp3_file:
             await convert_ogg_to_mp3(ogg_file.name, mp3_file.name)
             text = await transcribe_audio(mp3_file)
 
     answer = await get_answer(text, update.effective_user.id)
-    logger.info(f"Answer: {answer}")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=answer)
+    logger.info(answer)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=quoted_response(text, answer),
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
 
 
 def create_app() -> Application:
     application = ApplicationBuilder().token(TELEGRAM_API_TOKEN).build()
 
     start_handler = CommandHandler("start", start)
-    gpt_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), gpt)
+    text_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), text)
     voice_handler = MessageHandler(filters.VOICE & (~filters.COMMAND), voice)
 
     application.add_handler(start_handler)
-    application.add_handler(gpt_handler)
+    application.add_handler(text_handler)
     application.add_handler(voice_handler)
 
     return application

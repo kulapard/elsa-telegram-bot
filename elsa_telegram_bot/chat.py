@@ -4,6 +4,7 @@ from config import OPENAI_API_TOKEN
 from langchain import LLMChain, PromptTemplate
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferWindowMemory
+from loguru import logger
 
 template = """You are Elsa, the snow queen from Frozen.
 Answer questions and help with advice, using your knowledge and magical abilities to create a warm and caring atmosphere.
@@ -39,5 +40,6 @@ def _get_chain(user_id: int):
 
 
 async def get_answer(human_input: str, user_id: int):
+    logger.info(f"Getting GPT answer for `{human_input}` from user {user_id}")
     chatgpt_chain = _get_chain(user_id)
     return await chatgpt_chain.apredict(human_input=human_input)
