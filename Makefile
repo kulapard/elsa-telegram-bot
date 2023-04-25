@@ -7,7 +7,7 @@ release-web:
 	heroku container:release web --app ${APP}
 
 logs:
-	heroku logs --tail
+	heroku logs --tail -a ${APP}
 
 lint:
 	pre-commit run --all-files
