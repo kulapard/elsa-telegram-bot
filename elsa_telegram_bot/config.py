@@ -7,3 +7,4 @@ PORT = int(os.getenv("PORT", "8000"))
 ALLOWED_USER_IDS = [
     int(uid.strip()) for uid in os.getenv("ALLOWED_USER_IDS", "").split(",") if uid
 ]
+ADMIN_USER_ID = int(os.environ["ADMIN_USER_ID"].strip())
