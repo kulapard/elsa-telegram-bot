@@ -78,6 +78,7 @@ async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if Invite.check(code):
             await context.bot.send_message(chat_id, "Welcome!")
             Invite.use(code, chat_id)
+            Invite.clear_expired()
         else:
             await context.bot.send_message(
                 chat_id, "Sorry, your invitation link is invalid or has expired."
@@ -86,8 +87,6 @@ async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id, "This is a private bot. An invitation is required to start."
         )
-
-    Invite.clear_expired()
 
 
 def quoted_response(question, answer) -> str:
