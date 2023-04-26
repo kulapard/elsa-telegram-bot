@@ -108,7 +108,6 @@ class Invite:
 
     @classmethod
     def check(cls, code: str) -> bool:
-        logger.info(cls._storage.get_all())
         try:
             invitation = cls._storage.get_by_code(code)
         except InvitationNotFound:
