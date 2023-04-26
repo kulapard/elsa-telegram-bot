@@ -76,13 +76,11 @@ async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         code = context.args[0]
 
         if Invite.check(code):
-            await context.bot.send_message(
-                chat_id, "Welcome! Your invitation token is valid."
-            )
+            await context.bot.send_message(chat_id, "Welcome!")
             Invite.use(code, chat_id)
         else:
             await context.bot.send_message(
-                chat_id, "Sorry, your invitation code is invalid or has expired."
+                chat_id, "Sorry, your invitation link is invalid or has expired."
             )
     else:
         await context.bot.send_message(

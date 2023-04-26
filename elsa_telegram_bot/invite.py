@@ -7,21 +7,29 @@ from loguru import logger
 TOKEN_TTL = 86400  # 24 hours
 
 
+def _get_code() -> str:
+    return secrets.token_hex(16)
+
+
 def _get_expiration_date() -> datetime:
     return datetime.utcnow() + timedelta(seconds=TOKEN_TTL)
 
 
 @dataclass(kw_only=True)
 class Invitation:
-    code: str
+    code: str = field(default_factory=_get_code)
     is_used: bool = False
     expire_at: datetime = field(default_factory=_get_expiration_date)
+    user_id: int = None
 
     @property
     def is_expired(self) -> bool:
         now = datetime.utcnow()
         logger.debug(f"Invitation {self.code} expires at {self.expire_at} now is {now}")
         return now > self.expire_at
+
+    def use(self) -> None:
+        self.is_used = True
 
 
 class InvitationNotFound(Exception):
@@ -61,12 +69,31 @@ class InvitationStorage:
 class Invite:
     # TODO: use a database instead of in-memory storage
     _storage = InvitationStorage()
+    _GENERATE_MAX_TRIES = 3
+
+    @classmethod
+    def _try_to_generate_and_save(cls) -> Invitation | None:
+        invitation = Invitation()
+        try:
+            cls._storage.save(invitation)
+        except DuplicateInvitationCode:
+            return None
+        return invitation
 
     @classmethod
     def generate(cls) -> Invitation:
-        code = secrets.token_hex(8)
-        invitation = Invitation(code=code)
-        cls._storage.save(invitation)
+        invitation = None
+        try_count = 1
+        while invitation is None and try_count <= cls._GENERATE_MAX_TRIES:
+            logger.info(
+                f"Trying to generate invitation, attempt {try_count}/{cls._GENERATE_MAX_TRIES}"
+            )
+            invitation = cls._try_to_generate_and_save()
+            try_count += 1
+
+        if invitation is None:
+            raise RuntimeError("Failed to generate invitation code")
+
         logger.info(f"Generated invitation {invitation!r}")
         return invitation
 
