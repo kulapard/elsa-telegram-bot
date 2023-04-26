@@ -1,11 +1,12 @@
 import sys
 from contextlib import asynccontextmanager
 from functools import wraps
+from typing import Callable
 from uuid import uuid4
 
 import aiofiles
 from chat import get_answer
-from config import ALLOWED_USER_IDS, PORT, TELEGRAM_API_TOKEN
+from config import ADMIN_USER_ID, ALLOWED_USER_IDS, PORT, TELEGRAM_API_TOKEN
 from loguru import logger
 from telegram import Update
 from telegram.constants import ParseMode
@@ -20,6 +21,8 @@ from telegram.ext import (
 from telegram.helpers import escape_markdown
 from voice import convert_ogg_to_mp3, transcribe_audio
 
+from elsa_telegram_bot.invite import Invite
+
 logger.configure(
     handlers=[
         {"sink": sys.stdout, "format": "<blue>{time}</blue> | {elapsed} | {message}"},
@@ -27,7 +30,19 @@ logger.configure(
 )
 
 
-def only_allowed_users(func) -> None:
+def admin_required(func) -> Callable:
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = update.effective_user.id
+        if user_id != ADMIN_USER_ID:
+            logger.error(f"User {user_id} is not allowed to use this command.")
+            return
+        await func(update, context)
+
+    return wrapper
+
+
+def only_allowed_users(func) -> Callable:
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_user.id not in ALLOWED_USER_IDS:
@@ -40,12 +55,41 @@ def only_allowed_users(func) -> None:
     return wrapper
 
 
-@only_allowed_users
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@admin_required
+async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(update)
+    chat_id = update.effective_chat.id
+    invitation = Invite.generate()
+    url = f"https://t.me/{context.bot.username}?start={invitation.code}"
+    logger.info(f"Generated invite link {url} for chat {chat_id}")
     await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!"
+        chat_id=update.effective_chat.id,
+        text=f"Here is the invitation link:\n\n```\n{url}\n```",
+        parse_mode=ParseMode.MARKDOWN_V2,
     )
+
+
+async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(update)
+    chat_id = update.effective_chat.id
+    if context.args:
+        code = context.args[0]
+
+        if Invite.check(code):
+            await context.bot.send_message(
+                chat_id, "Welcome! Your invitation token is valid."
+            )
+            Invite.use(code, chat_id)
+        else:
+            await context.bot.send_message(
+                chat_id, "Sorry, your invitation code is invalid or has expired."
+            )
+    else:
+        await context.bot.send_message(
+            chat_id, "This is a private bot. An invitation is required to start."
+        )
+
+    Invite.clear_expired()
 
 
 def quoted_response(question, answer) -> str:
@@ -92,11 +136,14 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 def create_app() -> Application:
     application = ApplicationBuilder().token(TELEGRAM_API_TOKEN).build()
 
-    start_handler = CommandHandler("start", start)
+    invite_handler = CommandHandler("invite", invite)
+    start_with_token_handler = CommandHandler("start", start_with_token)
+
     text_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), text)
     voice_handler = MessageHandler(filters.VOICE & (~filters.COMMAND), voice)
 
-    application.add_handler(start_handler)
+    application.add_handler(invite_handler)
+    application.add_handler(start_with_token_handler)
     application.add_handler(text_handler)
     application.add_handler(voice_handler)
 
