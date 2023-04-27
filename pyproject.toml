@@ -2,7 +2,9 @@
 profile = "black"
 
 [tool.mypy]
-strict = true
+install_types = true
+non_interactive = true
+ignore_missing_imports = true
 
 [tool.ruff]
 select = [

@@ -22,12 +22,14 @@ def _build_memory() -> ConversationBufferWindowMemory:
     return ConversationBufferWindowMemory(human_prefix="Human", ai_prefix="AI", k=3)
 
 
-MEMORY_BY_USER_ID = defaultdict(_build_memory)
+MEMORY_BY_USER_ID: dict[int, ConversationBufferWindowMemory] = defaultdict(
+    _build_memory
+)
 
 
 def _get_chain(user_id: int):
     return LLMChain(
-        llm=ChatOpenAI(
+        llm=ChatOpenAI(  # type: ignore
             model_name="gpt-3.5-turbo",
             temperature=0.2,
             openai_api_key=OPENAI_API_TOKEN,

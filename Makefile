@@ -1,17 +1,18 @@
-APP=elsa-telegram-bot
+APP_NAME=elsa-telegram-bot
+APP_DIR=elsa_telegram_bot
 
 release-web:
-	docker buildx build --platform linux/amd64 -t ${APP}-web .
-	docker tag ${APP}-web registry.heroku.com/${APP}/web
-	docker push registry.heroku.com/${APP}/web
-	heroku container:release web --app ${APP}
+	docker buildx build --platform linux/amd64 -t ${APP_NAME}-web .
+	docker tag ${APP_NAME}-web registry.heroku.com/${APP_NAME}/web
+	docker push registry.heroku.com/${APP_NAME}/web
+	heroku container:release web --app ${APP_NAME}
 
 logs:
-	heroku logs --tail -a ${APP}
+	heroku logs --tail -a ${APP_NAME}
 
 lint:
 	pre-commit run --all-files
-	#mypy elsa_telegram_bot
+	mypy ${APP_DIR}
 
 run:
-	docker-compose up --build
+	docker compose up --build

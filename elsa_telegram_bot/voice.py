@@ -21,4 +21,4 @@ async def transcribe_audio(mp3_file) -> str:
     with open(mp3_file.name, "rb") as f:
         result = await openai.Audio().atranscribe(file=f, model="whisper-1")
     logger.info(result)
-    return result["text"]
+    return result["text"]  # type: ignore[no-any-return]
