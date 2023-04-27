@@ -1,7 +1,7 @@
 import sys
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Callable
+from typing import AsyncIterator, BinaryIO, Callable
 from uuid import uuid4
 
 import aiofiles
@@ -33,7 +33,7 @@ logger.configure(
 def admin_required(func) -> Callable:
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = update.effective_user.id
+        user_id = update.effective_user.id if update.effective_user else None
         if user_id != ADMIN_USER_ID:
             logger.error(f"User {user_id} is not allowed to use this command.")
             return
@@ -45,10 +45,9 @@ def admin_required(func) -> Callable:
 def only_allowed_users(func) -> Callable:
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.effective_user.id not in ALLOWED_USER_IDS:
-            logger.error(
-                f"User {update.effective_user.id} is not allowed to use this bot."
-            )
+        user_id = update.effective_user.id if update.effective_user else None
+        if user_id not in ALLOWED_USER_IDS:
+            logger.error(f"User {user_id} is not allowed to use this bot.")
             return
         await func(update, context)
 
@@ -58,12 +57,12 @@ def only_allowed_users(func) -> Callable:
 @admin_required
 async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(update)
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id  # type: ignore[union-attr]
     invitation = Invite.generate()
     url = f"https://t.me/{context.bot.username}?start={invitation.code}"
     logger.info(f"Generated invite link {url} for chat {chat_id}")
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text=f"Here is the invitation link:\n\n```\n{url}\n```",
         parse_mode=ParseMode.MARKDOWN_V2,
     )
@@ -71,7 +70,7 @@ async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(update)
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id  # type: ignore[union-attr]
     if context.args:
         code = context.args[0]
 
@@ -97,40 +96,47 @@ def quoted_response(question, answer) -> str:
 
 @only_allowed_users
 async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    answer = await get_answer(update.message.text, update.effective_user.id)
+    human_input: str = update.message.text  # type: ignore
+    user_id: int = update.effective_user.id  # type: ignore[union-attr]
+    chat_id: int = update.effective_chat.id  # type: ignore[union-attr]
+    answer = await get_answer(human_input, user_id)
     logger.info(answer)
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text=answer,
     )
 
 
 @asynccontextmanager
-async def temp_file(suffix):
+async def temp_file(suffix: str) -> AsyncIterator[BinaryIO]:
     async with aiofiles.tempfile.NamedTemporaryFile(mode="w+b", suffix=suffix) as file:
-        yield file
+        yield file  # type: ignore[misc]
 
 
 @only_allowed_users
 async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    file = await update.message.voice.get_file()
+    user_id = update.effective_user.id  # type: ignore[union-attr]
+    chat_id = update.effective_chat.id  # type: ignore[union-attr]
+
+    file = await update.message.voice.get_file()  # type: ignore[union-attr]
     logger.info(file)
+
     async with temp_file(suffix=".oga") as ogg_file:
         await file.download_to_drive(ogg_file.name)
         async with temp_file(suffix=".mp3") as mp3_file:
             await convert_ogg_to_mp3(ogg_file.name, mp3_file.name)
-            text = await transcribe_audio(mp3_file)
+            human_input = await transcribe_audio(mp3_file)
 
-    answer = await get_answer(text, update.effective_user.id)
+    answer = await get_answer(human_input, user_id)
     logger.info(answer)
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text=quoted_response(text, answer),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
 
 
-def create_app() -> Application:
+def create_app() -> Application:  # type: ignore[type-arg]
     application = ApplicationBuilder().token(TELEGRAM_API_TOKEN).build()
 
     invite_handler = CommandHandler("invite", invite)

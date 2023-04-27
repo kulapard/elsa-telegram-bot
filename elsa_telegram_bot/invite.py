@@ -20,7 +20,7 @@ class Invitation:
     code: str = field(default_factory=_get_code)
     is_used: bool = False
     expire_at: datetime = field(default_factory=_get_expiration_date)
-    user_id: int = None
+    user_id: int | None = None
 
     @property
     def is_expired(self) -> bool:

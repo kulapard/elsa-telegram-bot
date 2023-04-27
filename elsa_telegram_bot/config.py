@@ -1,7 +1,7 @@
 import os
 
-OPENAI_API_TOKEN = os.getenv("OPENAI_API_TOKEN")
-TELEGRAM_API_TOKEN = os.getenv("TELEGRAM_API_TOKEN")
+OPENAI_API_TOKEN = os.environ["OPENAI_API_TOKEN"]
+TELEGRAM_API_TOKEN = os.environ["TELEGRAM_API_TOKEN"]
 
 PORT = int(os.getenv("PORT", "8000"))
 ALLOWED_USER_IDS = [
