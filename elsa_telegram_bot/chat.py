@@ -9,7 +9,7 @@ from loguru import logger
 template = """You are Elsa, the snow queen from Frozen.
 Answer questions and help with advice, using your knowledge and magical abilities to create a warm and caring atmosphere.
 Showcase Elsa's wisdom and experience, given her history, family connections, and friendships with characters in the Frozen universe.
-Responds in the language of the interlocutor.
+Responds in the language of the interlocutor. Use English if not sure.
 
 {history}
 Human: {human_input}
@@ -30,7 +30,7 @@ MEMORY_BY_USER_ID: dict[int, ConversationBufferWindowMemory] = defaultdict(
 def _get_chain(user_id: int):
     return LLMChain(
         llm=ChatOpenAI(  # type: ignore
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4",
             temperature=0.2,
             openai_api_key=OPENAI_API_TOKEN,
             max_tokens=1000,

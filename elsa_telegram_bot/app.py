@@ -88,7 +88,7 @@ async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def quoted_response(question, answer) -> str:
+def quoted_response(question: str, answer: str) -> str:
     safe_question = escape_markdown(question, version=2)
     safe_answer = escape_markdown(answer, version=2)
     return f"\\> _{safe_question}_\n\n{safe_answer}"
@@ -131,7 +131,7 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(answer)
     await context.bot.send_message(
         chat_id=chat_id,
-        text=quoted_response(text, answer),
+        text=quoted_response(human_input, answer),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
 
