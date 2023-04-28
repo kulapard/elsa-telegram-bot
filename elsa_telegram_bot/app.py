@@ -1,12 +1,9 @@
 import sys
-from contextlib import asynccontextmanager
 from functools import wraps
-from typing import AsyncIterator, BinaryIO, Callable
+from typing import Callable
+from urllib.parse import urljoin
 from uuid import uuid4
 
-import aiofiles
-from chat import get_answer
-from config import ADMIN_USER_ID, ALLOWED_USER_IDS, PORT, TELEGRAM_API_TOKEN
 from loguru import logger
 from telegram import Update
 from telegram.constants import ParseMode
@@ -18,10 +15,23 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from telegram.helpers import escape_markdown
-from voice import convert_ogg_to_mp3, transcribe_audio
+from telegram.helpers import create_deep_linked_url
 
+from elsa_telegram_bot.chat import get_answer
+from elsa_telegram_bot.config import (
+    ADMIN_USER_ID,
+    ALLOWED_USER_IDS,
+    BASE_URL,
+    PORT,
+    TELEGRAM_API_TOKEN,
+)
 from elsa_telegram_bot.invite import Invite
+from elsa_telegram_bot.utils import (
+    escape_markdown_except_code,
+    quoted_response,
+    temp_file,
+)
+from elsa_telegram_bot.voice import convert_ogg_to_mp3, transcribe_audio
 
 logger.configure(
     handlers=[
@@ -59,7 +69,7 @@ async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(update)
     chat_id = update.effective_chat.id  # type: ignore[union-attr]
     invitation = Invite.generate()
-    url = f"https://t.me/{context.bot.username}?start={invitation.code}"
+    url = create_deep_linked_url(context.bot.username, invitation.code)
     logger.info(f"Generated invite link {url} for chat {chat_id}")
     await context.bot.send_message(
         chat_id=chat_id,
@@ -68,7 +78,7 @@ async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(update)
     chat_id = update.effective_chat.id  # type: ignore[union-attr]
     if context.args:
@@ -88,12 +98,6 @@ async def start_with_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def quoted_response(question: str, answer: str) -> str:
-    safe_question = escape_markdown(question, version=2)
-    safe_answer = escape_markdown(answer, version=2)
-    return f"\\> _{safe_question}_\n\n{safe_answer}"
-
-
 @only_allowed_users
 async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     human_input: str = update.message.text  # type: ignore
@@ -103,14 +107,9 @@ async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(answer)
     await context.bot.send_message(
         chat_id=chat_id,
-        text=answer,
+        text=escape_markdown_except_code(answer),
+        parse_mode=ParseMode.MARKDOWN_V2,
     )
-
-
-@asynccontextmanager
-async def temp_file(suffix: str) -> AsyncIterator[BinaryIO]:
-    async with aiofiles.tempfile.NamedTemporaryFile(mode="w+b", suffix=suffix) as file:
-        yield file  # type: ignore[misc]
 
 
 @only_allowed_users
@@ -122,9 +121,9 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info(file)
 
     async with temp_file(suffix=".oga") as ogg_file:
-        await file.download_to_drive(ogg_file.name)
+        await file.download_to_drive(ogg_file.name)  # type: ignore[arg-type]
         async with temp_file(suffix=".mp3") as mp3_file:
-            await convert_ogg_to_mp3(ogg_file.name, mp3_file.name)
+            await convert_ogg_to_mp3(ogg_file.name, mp3_file.name)  # type: ignore[arg-type]
             human_input = await transcribe_audio(mp3_file)
 
     answer = await get_answer(human_input, user_id)
@@ -140,13 +139,13 @@ def create_app() -> Application:  # type: ignore[type-arg]
     application = ApplicationBuilder().token(TELEGRAM_API_TOKEN).build()
 
     invite_handler = CommandHandler("invite", invite)
-    start_with_token_handler = CommandHandler("start", start_with_token)
+    start_handler = CommandHandler("start", start)
 
     text_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), text)
     voice_handler = MessageHandler(filters.VOICE & (~filters.COMMAND), voice)
 
     application.add_handler(invite_handler)
-    application.add_handler(start_with_token_handler)
+    application.add_handler(start_handler)
     application.add_handler(text_handler)
     application.add_handler(voice_handler)
 
@@ -165,7 +164,7 @@ def run_webhook() -> None:
     )
     app = create_app()
     url_path = f"bot/{uuid4()}"
-    webhook_url = f"https://elsa-telegram-bot.herokuapp.com/{url_path}"
+    webhook_url = urljoin(BASE_URL, url_path)
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,

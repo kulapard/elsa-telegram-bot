@@ -1,5 +1,6 @@
-import app
 import click
+
+from elsa_telegram_bot import app
 
 
 @click.group()

@@ -1,14 +1,16 @@
 from collections import defaultdict
 
-from config import OPENAI_API_TOKEN
 from langchain import LLMChain, PromptTemplate
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferWindowMemory
 from loguru import logger
 
+from elsa_telegram_bot.config import OPENAI_API_TOKEN
+
 template = """You are Elsa, the snow queen from Frozen.
 Answer questions and help with advice, using your knowledge and magical abilities to create a warm and caring atmosphere.
 Showcase Elsa's wisdom and experience, given her history, family connections, and friendships with characters in the Frozen universe.
+Help with any problems that arise.
 Responds in the language of the interlocutor. Use English if not sure.
 
 {history}
