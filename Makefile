@@ -10,9 +10,13 @@ release-web:
 logs:
 	heroku logs --tail -a ${APP_NAME}
 
-lint:
+pre-commit:
 	pre-commit run --all-files
+
+mypy:
 	mypy ${APP_DIR}
+
+lint: pre-commit mypy
 
 run:
 	docker compose up --build
