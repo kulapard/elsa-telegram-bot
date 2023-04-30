@@ -8,5 +8,4 @@ aiofiles==23.1.0
 langdetect==1.0.9
 
 # for text to speech
-gtts==2.3.2
 google-cloud-texttospeech==2.14.1
