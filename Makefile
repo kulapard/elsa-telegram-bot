@@ -1,3 +1,10 @@
+# If .env file is found, assign variables from this source (overriding existing)
+ifneq (,$(wildcard .env))
+    $(info Found .env file)
+    include .env
+endif
+
+
 APP_NAME=elsa-telegram-bot
 APP_DIR=elsa_telegram_bot
 
@@ -12,6 +19,9 @@ restart:
 
 bash:
 	heroku run bash --app ${APP_NAME}
+
+key:
+	echo ${GOOGLE_CREDENTIALS} > keys/gcp_key.json
 
 logs:
 	heroku logs --tail -a ${APP_NAME}

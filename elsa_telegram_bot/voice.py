@@ -4,11 +4,12 @@ from functools import cache
 import langdetect
 import openai
 from aiofiles.threadpool.binary import AsyncBufferedReader
-from google.cloud import texttospeech
+from google.cloud import texttospeech as tts
 from loguru import logger
 from pydub import AudioSegment
 
 from elsa_telegram_bot.config import OPENAI_API_TOKEN
+from elsa_telegram_bot.google_cloud import tts_client
 
 OGG_EXTENSION = ".oga"
 MP3_EXTENSION = ".mp3"
@@ -32,13 +33,15 @@ async def transcribe_audio(mp3_file: AsyncBufferedReader) -> str:
 
 
 @cache
-def list_voice_names(lang: str) -> list[str]:
+def list_voice_names(
+    lang: str,
+    gender: int = tts.SsmlVoiceGender.FEMALE,
+) -> list[str]:
     """Returns list of voice names for the language."""
-    client = texttospeech.TextToSpeechClient()
-    response = client.list_voices()
+    response = tts_client.list_voices()
     voice_names = []
     for voice in response.voices:
-        if lang in voice.language_codes[0] and voice.ssml_gender == 2:
+        if lang in voice.language_codes[0] and voice.ssml_gender == gender:
             voice_names.append(voice.name)
     return voice_names
 
@@ -56,7 +59,7 @@ def get_lang_code(voice_name: str) -> str:
     >>> get_lang_code("en-US-Wavenet-D")
     "en-US"
     """
-    return "-".join(voice_name.split("-", maxsplit=2)[0:2])
+    return "-".join(voice_name.split("-")[:2])
 
 
 async def text_to_speech(text: str, file_path: str) -> str:
@@ -69,18 +72,13 @@ async def text_to_speech(text: str, file_path: str) -> str:
         f"Text to speech using lang code {lang_code!r} and {voice_name!r} voice name"
     )
 
-    # Initialize the Text-to-Speech client
-    client = texttospeech.TextToSpeechClient()
-
     # Configure the synthesis request
-    input_text = texttospeech.SynthesisInput(text=text)
-    voice = texttospeech.VoiceSelectionParams(language_code=lang_code, name=voice_name)
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.OGG_OPUS
-    )
+    input_text = tts.SynthesisInput(text=text)
+    voice = tts.VoiceSelectionParams(language_code=lang_code, name=voice_name)
+    audio_config = tts.AudioConfig(audio_encoding=tts.AudioEncoding.OGG_OPUS)
 
     # Perform the synthesis
-    response = client.synthesize_speech(
+    response = tts_client.synthesize_speech(
         input=input_text, voice=voice, audio_config=audio_config
     )
 
