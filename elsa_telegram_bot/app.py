@@ -31,7 +31,7 @@ from elsa_telegram_bot.utils import (
     quoted_response,
     temp_file,
 )
-from elsa_telegram_bot.voice import convert_ogg_to_mp3, transcribe_audio
+from elsa_telegram_bot.voice import convert_ogg_to_mp3, text_to_speech, transcribe_audio
 
 logger.configure(
     handlers=[
@@ -98,6 +98,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def send_text_as_voice(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, text_to_say: str
+) -> None:
+    chat_id: int = update.effective_chat.id  # type: ignore[union-attr]
+    async with temp_file(suffix=".mp3") as mp3_file:
+        voice_name = await text_to_speech(text_to_say, mp3_file.name)  # type: ignore[arg-type]
+        msg = await context.bot.send_voice(
+            chat_id=chat_id, voice=open(mp3_file.name, "rb")
+        )
+
+    await msg.reply_text(
+        f"Voice name: {voice_name}", reply_to_message_id=msg.message_id
+    )
+
+
 @only_allowed_users
 async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     human_input: str = update.message.text  # type: ignore
@@ -110,6 +125,7 @@ async def text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         text=escape_markdown_except_code(answer),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
+    await send_text_as_voice(update, context, answer)
 
 
 @only_allowed_users
@@ -133,6 +149,7 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         text=quoted_response(human_input, answer),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
+    await send_text_as_voice(update, context, answer)
 
 
 def create_app() -> Application:  # type: ignore[type-arg]

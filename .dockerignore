@@ -4,3 +4,4 @@
 # Except this files/dirs
 !elsa_telegram_bot
 !requirements.txt
+!.profile
