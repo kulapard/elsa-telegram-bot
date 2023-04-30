@@ -7,6 +7,12 @@ release-web:
 	docker push registry.heroku.com/${APP_NAME}/web
 	heroku container:release web --app ${APP_NAME}
 
+restart:
+	heroku restart --app ${APP_NAME}
+
+bash:
+	heroku run bash --app ${APP_NAME}
+
 logs:
 	heroku logs --tail -a ${APP_NAME}
 

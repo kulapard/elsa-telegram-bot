@@ -1,10 +1,10 @@
 import random
+from functools import cache
 
+import langdetect
 import openai
 from aiofiles.threadpool.binary import AsyncBufferedReader
 from google.cloud import texttospeech
-from gtts.lang import tts_langs
-from langdetect import detect
 from loguru import logger
 from pydub import AudioSegment
 
@@ -12,6 +12,7 @@ from elsa_telegram_bot.config import OPENAI_API_TOKEN
 
 OGG_EXTENSION = ".oga"
 MP3_EXTENSION = ".mp3"
+DEFAULT_VOICE_NAME = "en-US-Wavenet-D"
 
 
 async def convert_ogg_to_mp3(ogg_file: str, mp3_file: str):
@@ -30,14 +31,7 @@ async def transcribe_audio(mp3_file: AsyncBufferedReader) -> str:
     return result["text"]  # type: ignore[no-any-return]
 
 
-def detect_language(text: str) -> str:
-    """Detects language of the text."""
-    lang = detect(text)
-    if lang not in tts_langs():
-        lang = "en"
-    return lang
-
-
+@cache
 def list_voice_names(lang: str) -> list[str]:
     """Returns list of voice names for the language."""
     client = texttospeech.TextToSpeechClient()
@@ -50,8 +44,10 @@ def list_voice_names(lang: str) -> list[str]:
 
 
 def get_voice_name(lang) -> str:
-    """Returns random voice name for the language."""
-    return random.choice(list_voice_names(lang))
+    """Returns random voice name for the language or default voice name if no voice names found."""
+    voice_name = random.choice(list_voice_names(lang))
+    voice_name = voice_name or DEFAULT_VOICE_NAME
+    return voice_name
 
 
 def get_lang_code(voice_name: str) -> str:
@@ -65,7 +61,7 @@ def get_lang_code(voice_name: str) -> str:
 
 async def text_to_speech(text: str, file_path: str) -> str:
     """Converts text to speech using Google Cloud Text-to-Speech."""
-    lang = detect_language(text)
+    lang = langdetect.detect(text)
     voice_name = get_voice_name(lang)
     lang_code = get_lang_code(voice_name)
 
