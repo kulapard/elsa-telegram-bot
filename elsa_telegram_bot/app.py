@@ -1,6 +1,6 @@
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 from urllib.parse import urljoin
 from uuid import uuid4
 
