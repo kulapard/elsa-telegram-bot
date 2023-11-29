@@ -1,12 +1,13 @@
-name: pre-commit
+name: Push to master
 
 on:
-  pull_request:
   push:
     branches: [ master ]
 
+concurrency: ${{ github.ref }}
+
 jobs:
-  pre-commit:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,3 +15,12 @@ jobs:
         with:
           python-version: "3.12"
       - uses: pre-commit/action@v3.0.0
+
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          push: false
