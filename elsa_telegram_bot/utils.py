@@ -1,6 +1,6 @@
 import re
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import aiofiles
 from aiofiles.threadpool.binary import AsyncBufferedReader
