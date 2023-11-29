@@ -1,4 +1,4 @@
-python-telegram-bot[webhooks]==20.3
+python-telegram-bot[webhooks]==20.7
 openai==0.27.8
 langchain==0.0.342
 pydub==0.25.1
