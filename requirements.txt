@@ -1,6 +1,6 @@
 python-telegram-bot[webhooks]==20.7
 openai==1.6.1
-langchain==0.0.353
+langchain==0.0.354
 pydub==0.25.1
 loguru==0.7.2
 click==8.1.7
