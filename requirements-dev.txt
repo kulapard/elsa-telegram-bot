@@ -1,5 +1,5 @@
 -c requirements.txt
 
 pre-commit==3.6.0
-ruff==0.1.14
+ruff==0.1.15
 mypy==1.8.0
